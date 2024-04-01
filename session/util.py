@@ -12,6 +12,8 @@ def session_extractor(p):
                 ips = sorted([p.sprintf(f"{ip_src_fmt}:%r,UDP.sport%"),
                               p.sprintf(f"{ip_dst_fmt}:%r,UDP.dport%")])
                 return f"UDP {ips[0]}-{ips[1]}"
+            elif 'HTTP' in p:
+                pass
             elif 'ICMP' in p:
                 ips = sorted([p.sprintf(f"{ip_src_fmt}"),
                               p.sprintf(f"{ip_dst_fmt}")])
