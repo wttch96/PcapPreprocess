@@ -1,0 +1,11 @@
+active: local
+
+local:
+  glads:
+    datasets:
+      - name: vpn
+        root-path: ./datasets/example
+        output-path: ./datasets/example-output
+school-server:
+  glads:
+    dataset-path:
