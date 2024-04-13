@@ -6,6 +6,18 @@ local:
       - name: vpn
         root-path: ./datasets/example
         output-path: ./datasets/example-output
+  # Capsule 胶囊网络的实验数据集预处理
+  capsule:
+    datasets:
+      # UTSC M = 20, N = 1000 的预处理
+      - name: UTSC[Capsule:20*1000]
+        # 数据集所在位置
+        root-path: ./datasets/example
+        # 预处理输出位置
+        output-path: ./datasets/example-capsule-20-1000
+        # 参数 M 和 N
+        M: 20
+        N: 1000
 school-server:
   glads:
     dataset-path:
