@@ -6,7 +6,14 @@ from abc import ABC, abstractmethod
 from scapy.packet import Packet
 from scapy.utils import PcapReader
 from tqdm import tqdm
-from wth.utils.progress import bar_format
+
+
+def ignore_packet(p: Packet) -> bool:
+    """
+    是否是忽略的 packet，如果返回 true 则会在预处理 Packet 对象时跳过该包。
+    :param p: 要判断的 Packet 对象。
+    """
+    return False
 
 
 class PcapPreprocessor(ABC):
@@ -23,7 +30,17 @@ class PcapPreprocessor(ABC):
     将 d.pcap 的 d 作为输出文件夹放入, 上层文件夹结构和输入一致。
     """
 
+    # pcap 文件所在文件夹相对于 root_path 的路径, 为了保持在输出的时候目录结构一致
+    processing_relpath: str
+    # pcap 的文件名
+    processing_pcap_name: str
+
     def __init__(self, root_path: str, output_path: str):
+        """
+        构造函数。
+        :param root_path: pcap 所在的文件夹根目录。
+        :param output_path: 预处理完成数据保存的根目录。
+        """
         self.root_path = root_path
         self.output_path = output_path
 
@@ -40,7 +57,9 @@ class PcapPreprocessor(ABC):
                 if not self.is_pcap_file(ext):
                     continue
 
-                if self.is_preprocessed(relpath, pcap_name):
+                self.processing_relpath = relpath
+                self.processing_pcap_name = pcap_name
+                if self.is_preprocessed():
                     # 文件已经处理过
                     print(f"{pcap_name} 已经处理过, 跳过...")
                     continue
@@ -50,7 +69,7 @@ class PcapPreprocessor(ABC):
                 sys.stdout.flush()
                 sys.stderr.flush()
 
-                tq = tqdm(unit='Packet', bar_format="已处理:{n_fmt} 速度:{rate_fmt}{postfix} {desc}")
+                tq = tqdm(unit='Packet', bar_format=f"[{file}]" + "已处理:{n_fmt} 速度:{rate_fmt}{postfix} {desc}")
                 self.pcap_start()
                 with PcapReader(f"{cur_dir}/{file}") as reader:
                     for packet in reader:
@@ -58,7 +77,7 @@ class PcapPreprocessor(ABC):
                         # 处理 packet
                         self.preprocess(packet)
 
-                completed_data = self.pcap_completed(relpath, pcap_name)
+                completed_data = self.pcap_completed()
                 self._save_completed_flag(completed_data, relpath, pcap_name)
 
     def _save_completed_flag(self, completed_data, relpath: str, pcap_name: str):
@@ -76,7 +95,7 @@ class PcapPreprocessor(ABC):
         """
         pass
 
-    def is_preprocessed(self, relpath: str, pcap_name: str) -> bool:
+    def is_preprocessed(self) -> bool:
         """
         判断 pcap 文件是否已经预处理过。
         默认会在路径下生成一个 completed.json 文件，判断该文件是否存在。
@@ -84,11 +103,9 @@ class PcapPreprocessor(ABC):
         例如:
         处理 /in/A.pcap
         会生成 /out/A/completed.json
-
-        :param relpath: pcap 文件所在文件夹相对于 root_path 的路径, 为了保持在输出的时候目录结构一致
-        :param pcap_name: pcap 的文件名
         """
-        output_path = os.path.join(self.output_path, relpath, pcap_name, "completed.json")
+        output_path = os.path.join(self.output_path, self.processing_relpath, self.processing_pcap_name,
+                                   "completed.json")
         return os.path.exists(output_path)
 
     def pcap_start(self):
@@ -97,11 +114,9 @@ class PcapPreprocessor(ABC):
         """
         pass
 
-    def pcap_completed(self, relpath: str, pcap_name: str):
+    def pcap_completed(self):
         """
         单个 pcap 文件处理完成的回调。
-        :param relpath: pcap 文件所在文件夹相对于 root_path 的路径, 为了保持在输出的时候目录结构一致
-        :param pcap_name: pcap 的文件名
         """
         pass
 
@@ -115,13 +130,6 @@ class PcapPreprocessor(ABC):
         if not os.path.exists(output_path):
             os.makedirs(output_path)
             print(f"创建输出文件夹 {output_path}")
-
-    def ignore_packet(self, p: Packet) -> bool:
-        """
-        是否是忽略的 packet，如果返回 true 则会在预处理 Packet 对象时跳过该包。
-        :param p: 要判断的 Packet 对象。
-        """
-        return False
 
     def ignore_file(self, file: str) -> bool:
         """

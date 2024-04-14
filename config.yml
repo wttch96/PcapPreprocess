@@ -10,7 +10,7 @@ local:
   capsule:
     datasets:
       # UTSC M = 20, N = 1000 的预处理
-      - name: UTSC[Capsule:20*1000]
+      - name: USTC-Capsule-20-1000
         # 数据集所在位置
         root-path: ./datasets/example
         # 预处理输出位置
@@ -18,6 +18,16 @@ local:
         # 参数 M 和 N
         M: 20
         N: 1000
+
+# 以下是服务器的环境
 school-server:
   glads:
     dataset-path:
+  capsule:
+    datasets:
+      - name: USTC-TFC2016-Capsule-20-1000
+        root-path: /home/wangc/datasets/USTC-TFC2016
+        output-path: /home/wangc/datasets/USTC-TFC2016-Capsule-20-1000
+        # 参数
+        M: 20
+        N: 1000

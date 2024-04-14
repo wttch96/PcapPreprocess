@@ -1,7 +1,7 @@
 import time
 
 from scapy.packet import Packet
-from wth.utils import Config
+from wth.utils.config import Config
 
 from preprocessor import PcapPreprocessor
 
