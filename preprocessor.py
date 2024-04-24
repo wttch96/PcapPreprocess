@@ -1,11 +1,13 @@
 import json
 import os
-import sys
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 
 from scapy.packet import Packet
 from scapy.utils import PcapReader
-from tqdm import tqdm
+from wth.log import get_logger
+
+logger = get_logger("PcapPreprocessor")
 
 
 def ignore_packet(p: Packet) -> bool:
@@ -35,7 +37,7 @@ class PcapPreprocessor(ABC):
     # pcap 的文件名
     processing_pcap_name: str
 
-    def __init__(self, root_path: str, output_path: str):
+    def __init__(self, root_path: str, output_path: str, max_workers=10):
         """
         构造函数。
         :param root_path: pcap 所在的文件夹根目录。
@@ -43,10 +45,13 @@ class PcapPreprocessor(ABC):
         """
         self.root_path = root_path
         self.output_path = output_path
+        self.max_workers = max_workers
+        self.executor = None
 
     def start(self):
         # 当前文件夹, _, 当前文件夹下的文件
-        for cur_dir, sub_dirs, files in os.walk(self.root_path):
+        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        for cur_dir, _, files in os.walk(self.root_path):
             # 当前文件夹相对于 root_path 的路径, 为了保持在输出的时候目录结构一致
             relpath = os.path.relpath(cur_dir, self.root_path)
             for file in files:
@@ -61,24 +66,28 @@ class PcapPreprocessor(ABC):
                 self.processing_pcap_name = pcap_name
                 if self.is_preprocessed():
                     # 文件已经处理过
-                    print(f"{pcap_name} 已经处理过, 跳过...")
+                    logger.info(f"{pcap_name} 已经处理过, 跳过...")
                     continue
 
-                self._try_mk_pcap_output_path(relpath, pcap_name)
+                # 提交任务
+                logger.info(f"文件 {relpath}/{file} 解析任务已提交...")
+                self.executor.submit(self._run, cur_dir, file, relpath, pcap_name)
 
-                sys.stdout.flush()
-                sys.stderr.flush()
+    def _run(self, cur_dir: str, file: str, relpath: str, pcap_name: str) -> None:
+        logger.info(f"文件 {relpath}/{file} 开始解析...")
+        try:
+            self._try_mk_pcap_output_path(relpath, pcap_name)
 
-                tq = tqdm(unit='Packet', bar_format=f"[{file}]" + "已处理:{n_fmt} 速度:{rate_fmt}{postfix} {desc}")
-                self.pcap_start()
-                with PcapReader(f"{cur_dir}/{file}") as reader:
-                    for packet in reader:
-                        tq.update(1)
-                        # 处理 packet
-                        self.preprocess(packet)
+            self.pcap_start()
+            with PcapReader(f"{cur_dir}/{file}") as reader:
+                for packet in reader:
+                    # 处理 packet
+                    self.preprocess(packet)
 
-                completed_data = self.pcap_completed()
-                self._save_completed_flag(completed_data, relpath, pcap_name)
+            completed_data = self.pcap_completed()
+            self._save_completed_flag(completed_data, relpath, pcap_name)
+        finally:
+            logger.info(f"文件 {relpath}/{file} 解析完成!")
 
     def _save_completed_flag(self, completed_data, relpath: str, pcap_name: str):
         if completed_data is None:
