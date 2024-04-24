@@ -9,7 +9,7 @@ from preprocessor import PcapPreprocessor
 class GLADSPreprocessor(PcapPreprocessor):
 
     def __init__(self, config: Config):
-        glads_config = config['glads']
+        glads_config = config['glads.py']
         datasets = glads_config['datasets'][0]
         super(GLADSPreprocessor, self).__init__(
             root_path=datasets['root-path'],

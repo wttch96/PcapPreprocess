@@ -1,8 +1,35 @@
 active: local
 
 
+shared:
+  datasets:
+    ustc-tfc2016:
+      root-path:
+
+  methods:
+    glads:
+
+    capsule:
+
+  preprocessors:
+    ustc-tfc2016-capsule:
+      method: capsule
+      dataset: ustc-tfc2016
+      number-workers: 2
+      kwargs:
+        M: 20
+        N: 1000
+
 
 local:
+  datasets:
+    ustc-tfc2016:
+      root-path: ./datasets/USTC-example
+  preprocessors:
+    ustc-tfc2016-capsule:
+      method: capsule
+      dataset: ustc-tfc2016
+      output-path: ./datasets/USTC-example-capsule-20-1000
   glads:
     datasets:
       root-path: ./datasets/example

@@ -106,4 +106,4 @@ from wth.utils import Config
 
 config = Config()
 
-print(config['glads'])
+print(config['glads.py'])
