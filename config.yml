@@ -11,10 +11,24 @@ shared:
 
     capsule:
 
+    # USTC 数据集统计分析
+    ustc-tfc2016-statistics:
+      # 数据分析器所在的模块
+      module: impl.ustc_statistics
+      # 数据分析器的类名
+      class: UstcStatistics
+
+
   preprocessors:
-    ustc-tfc2016-capsule:
-      method: capsule
+    # USTC 数据集统计
+    ustc-tfc2016-statistics:
+      # 使用的方法
+      method: ustc-tfc2016-statistics
+      # 使用的数据集
       dataset: ustc-tfc2016
+      output-path: ./datasets/USTC-Statistics
+
+    ustc-tfc2016-capsule:
       number-workers: 2
       kwargs:
         M: 20
