@@ -3,5 +3,5 @@ tqdm~=4.66.1
 numpy~=1.26.3
 Pillow~=10.3.0
 matplotlib~=3.8.2
-wttch-train-helper~=0.0.31
+wttch-train-helper~=0.0.33
 PyYAML~=6.0.1

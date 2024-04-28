@@ -2,7 +2,7 @@ import json
 import os
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from typing import Any
 
 from scapy.packet import Packet
@@ -36,6 +36,8 @@ class PcapPreprocessTask(ABC):
         self.relpath = relpath
         self.pcap_name = pcap_name
 
+        self.logger = get_logger("PcapPreprocessorTask")
+
     def __call__(self, *args, **kwargs):
         """
         实际的任务处理函数, 线程池最后将调用该方法.
@@ -52,8 +54,13 @@ class PcapPreprocessTask(ABC):
             with PcapReader(f"{self.cur_dir}/{self.file}") as reader:
                 for packet in reader:
                     # 处理 packet
-                    self.preprocess(packet)
+                    self._preprocess_wrapper(packet)
                     count += 1
+                    if count % 10000 == 0:
+                        used_time = time.time() - start_time
+                        logger.info(
+                            f"文件 {self.relpath}/{self.file} 已处理{count}包, 用时: {used_time:.3f}s "
+                            f"平均 {count / used_time:.2f} 包/s, ")
 
             # 调用回调
             completed_data = self.pcap_completed()
@@ -64,6 +71,15 @@ class PcapPreprocessTask(ABC):
             logger.info(
                 f"文件 {self.relpath}/{self.file} 解析完成! 平均 {count / used_time:.2f} 包/s, "
                 f"共{count}包, 用时: {used_time:.3f}s")
+
+    def _preprocess_wrapper(self, packet: Packet) -> None:
+        """
+        对 preprocess 进行包装, 处理下异常.
+        """
+        try:
+            self.preprocess(packet)
+        except Exception as e:
+            self.logger.warning(f"预处理包出错 {e.__class__.__name__}: {e}")
 
     @abstractmethod
     def preprocess(self, packet: Packet):
@@ -157,11 +173,14 @@ class PcapPreprocessor(ABC):
         """
         创建任务, 实际任务需要在 PacaPreprocessTask 中执行.
         PcapPreprocessTask 是个抽象类, 所以还要实现一下 PcapPreprocessTask.
+
+        Args:
+            kwargs: 处理器框架使用的参数, 直接交给 `PcapPreprocessTask` 的构造函数即可。
         """
 
     def start(self):
         # 当前文件夹, _, 当前文件夹下的文件
-        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        self.executor = ProcessPoolExecutor(max_workers=self.max_workers)
         for cur_dir, _, files in os.walk(self.root_path):
             # 当前文件夹相对于 root_path 的路径, 为了保持在输出的时候目录结构一致
             relpath = os.path.relpath(cur_dir, self.root_path)

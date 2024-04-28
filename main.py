@@ -28,17 +28,5 @@ if __name__ == '__main__':
         config.display_detail(args.detail)
 
     else:
-        method = args.method
-        dataset = args.dataset
-
-        if method in config.configs:
-            datasets = {k['name']: k for k in config.configs[method]['datasets']}
-            if dataset in datasets:
-                method_config = datasets[dataset]
-                processor = METHOD[method](method_config)  # type: PcapPreprocessor
-                print(processor)
-                processor.start()
-            else:
-                print(f"未知的数据集: {dataset} 期望:{','.join(datasets.keys())}")
-        else:
-            print(f"未知的数据集处理方法:{method} 期望:{','.join(config.configs.keys())}")
+        preprocessor = config.preprocessor(args.start)
+        preprocessor.start()
