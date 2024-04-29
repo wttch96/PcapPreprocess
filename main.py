@@ -30,3 +30,4 @@ if __name__ == '__main__':
     else:
         preprocessor = config.preprocessor(args.start)
         preprocessor.start()
+        preprocessor.start_process_completed_file()

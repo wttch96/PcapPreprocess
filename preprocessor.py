@@ -208,6 +208,23 @@ class PcapPreprocessor(ABC):
                 logger.info(f"文件 {relpath}/{file} 解析任务已提交...")
                 self.executor.submit(task)
 
+    def start_process_completed_file(self):
+        for cur_dir, _, files in os.walk(self.output_path):
+            for file in files:
+                file_key = self.completed_file_key(cur_dir, file)
+
+                with open(os.path.join(cur_dir, file), 'r') as f:
+                    content: dict = json.load(f)
+                    self.process_completed_file(file_key, content)
+
+    @abstractmethod
+    def process_completed_file(self, file_key: str, content: dict) -> None:
+        pass
+
+    @abstractmethod
+    def completed_file_key(self, cur_dir: str, file: str) -> str:
+        pass
+
     def ignore_file(self, file: str) -> bool:
         """
         是否是忽略的文件，如果返回 true 将跳过处理。

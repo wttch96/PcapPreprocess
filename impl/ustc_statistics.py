@@ -1,10 +1,90 @@
+import json
+from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import Any
 
-from scapy.layers.inet import IP
-from scapy.packet import Packet
+from scapy.layers.dns import DNS
+from scapy.layers.http import HTTP
+from scapy.layers.inet import IP, TCP, UDP, ICMP
+from scapy.layers.dhcp import DHCP
+from scapy.layers.dhcp6 import DHCP6
+from scapy.layers.inet6 import IPv6
+from scapy.layers.llmnr import LLMNRQuery, LLMNRResponse
+from scapy.layers.l2 import ARP
+from scapy.layers.ntp import NTP
+from scapy.layers.snmp import SNMP
+from scapy.packet import Packet, Raw, Padding
 
 from preprocessor import PcapPreprocessor, PcapPreprocessTask
 from util import IPUtil
+
+
+@dataclass
+class PcapCount:
+    pcap: int = 0
+    total_length: int = 0
+    payload_total_length: int = 0
+
+    def count(self, packet: Packet):
+        self.pcap += 1
+        self.total_length += len(packet)
+        self.payload_total_length += len(packet.payload)
+
+
+@dataclass
+class L4Count:
+    tcp: int = 0
+    udp: int = 0
+    other: int = 0
+
+    def count(self, packet: Packet):
+        if packet.haslayer(TCP):
+            self.tcp += 1
+        elif packet.haslayer(UDP):
+            self.udp += 1
+        else:
+            self.other += 1
+
+
+@dataclass
+class IPCount:
+    v4_count: int = 0
+    v6_count: int = 0
+    other_count: int = 0
+    v4_src_class_map: dict[str, int] = field(default_factory=dict)
+    v4_dst_class_map: dict[str, int] = field(default_factory=dict)
+    v4_class_rel_map: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    def count(self, packet: Packet):
+
+        if packet.haslayer(IP):
+            ip: IP = packet.getlayer(IP)
+            ip_src = ip.src
+            ip_dst = ip.dst
+
+            ip_src_class: str = IPUtil.get_ip_class(ip_src)
+            ip_dst_class: str = IPUtil.get_ip_class(ip_dst)
+            # 统计 ip v4
+            self.v4_count += 1
+
+            # 统计 IPv4 ABCDE网段
+            if ip_src_class not in self.v4_src_class_map:
+                self.v4_src_class_map[ip_src_class] = 0
+            if ip_dst_class not in self.v4_dst_class_map:
+                self.v4_dst_class_map[ip_dst_class] = 0
+            self.v4_src_class_map[ip_src_class] += 1
+            self.v4_dst_class_map[ip_dst_class] += 1
+
+            # 统计 IPv4 ABCDE网段关系
+            if ip_src_class not in self.v4_class_rel_map:
+                self.v4_class_rel_map[ip_src_class] = {}
+            if ip_dst_class not in self.v4_class_rel_map[ip_src_class]:
+                self.v4_class_rel_map[ip_src_class][ip_dst_class] = 0
+            self.v4_class_rel_map[ip_src_class][ip_dst_class] += 1
+        elif packet.haslayer(IPv6):
+            self.v6_count += 1
+        else:
+            self.other_count += 1
 
 
 class _UstcStatisticsTask(PcapPreprocessTask):
@@ -15,51 +95,39 @@ class _UstcStatisticsTask(PcapPreprocessTask):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-        self.pcap_count = 0
-        self.pcap_total_length = 0
-        self.pcap_payload_total_length = 0
-        self.ip_type_src = {}  # type: dict[str, int]
-        self.ip_type_dst = {}  # type: dict[str, int]
+        self.pcap_count = PcapCount()
+        self.l4_count = L4Count()
+        self.ip_count = IPCount()
 
-    def pcap_start(self) -> None:
-        self.pcap_count = 0
-        self.pcap_total_length = 0
-        self.pcap_payload_total_length = 0
-        self.ip_type_src = {}
-        self.ip_type_dst = {}
+        # 应用层协议统计
+        self._l7_layers = [HTTP, DNS, DHCP, DHCP6, ARP, ICMP, LLMNRQuery, LLMNRResponse, NTP, SNMP]
+        self._l7_layers_name = ["http", "dns", "dhcp", "dhcp6", "arp", "icmp", "llmnr", "llmnr", "ntp", "snmp"]
+        self.l7 = {name: 0 for name in self._l7_layers_name}
+        self.l7['other'] = 0
 
     def preprocess(self, packet: Packet):
-        self.pcap_count += 1
-        self.pcap_total_length += len(packet)
-        self.pcap_payload_total_length += len(packet.payload)
+        self.pcap_count.count(packet)
+        self.l4_count.count(packet)
+        self.ip_count.count(packet)
 
-        if packet.haslayer(IP):
-            ip: IP = packet.getlayer(IP)
-            ip_src = ip.src
-            ip_dst = ip.dst
+        flag = False
+        for layer, name in zip(self._l7_layers, self._l7_layers_name):
+            if packet.haslayer(layer):
+                self.l7[name] += 1
+                flag = True
 
-            ip_src_class: str = IPUtil.get_ip_class(ip_src)
-            ip_dst_class: str = IPUtil.get_ip_class(ip_dst)
-
-        else:
-            ip_src_class = 'O'
-            ip_dst_class = 'O'
-        ip_src_count: int = self.ip_type_src.get(ip_src_class, 0) + 1
-        ip_dst_count: int = self.ip_type_dst.get(ip_dst_class, 0) + 1
-
-        # 统计 ip 地址的 ABCD 分类
-        self.ip_type_src[ip_src_class] = ip_src_count
-        self.ip_type_dst[ip_dst_class] = ip_dst_count
+        if not flag:
+            self.l7['other'] += 1
 
     def pcap_completed(self) -> Any:
         """这些数据将保存在处理完成的 completed.json 文件里"""
-        return {
-            "pcap_count": self.pcap_count,
-            "pcap_total_length": self.pcap_total_length,
-            "pcap_payload_total_length": self.pcap_payload_total_length,
-            "ip_type_src": self.ip_type_src,
-            "ip_type_dst": self.ip_type_dst
+        ret = {
+            "pcap": self.pcap_count.__dict__,
+            "ip": self.ip_count.__dict__,
+            "l4": self.l4_count.__dict__,
+            "l7": self.l7
         }
+        return ret
 
 
 class UstcStatistics(PcapPreprocessor):
@@ -68,6 +136,12 @@ class UstcStatistics(PcapPreprocessor):
 
     各个文件的包数, 整体长度, 载体长度, 每个网段的数据数量, 应用层协议数量.
     """
+
+    def process_completed_file(self, file_key: str, content: dict) -> None:
+        print(content)
+
+    def completed_file_key(self, cur_dir: str, file: str) -> str:
+        return file
 
     def __init__(self, root_path: str, output_path: str, max_worker: int = 19) -> None:
         super().__init__(root_path, output_path, max_worker)
