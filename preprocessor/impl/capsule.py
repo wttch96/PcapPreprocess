@@ -1,6 +1,4 @@
 import os.path
-import time
-from math import ceil
 
 import numpy as np
 from PIL import Image

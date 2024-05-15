@@ -1,8 +1,6 @@
 from argparse import ArgumentParser
 
 from config import Config
-from impl.capsule import CapsulePreprocessor
-from preprocessor import PcapPreprocessor
 
 #
 # for dataset in Config()['capsule']['datasets']:
@@ -11,9 +9,6 @@ from preprocessor import PcapPreprocessor
 #
 #     preprocessor.start()
 
-METHOD = {
-    'capsule': lambda x: CapsulePreprocessor(x['M'], x['N'], x['root-path'], x['output-path'])
-}
 
 if __name__ == '__main__':
     config = Config()
@@ -30,4 +25,3 @@ if __name__ == '__main__':
     else:
         preprocessor = config.preprocessor(args.start)
         preprocessor.start()
-        preprocessor.start_process_completed_file()

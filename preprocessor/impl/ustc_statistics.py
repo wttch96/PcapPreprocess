@@ -1,32 +1,58 @@
-import json
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from scapy.layers.dhcp import DHCP
+from scapy.layers.dhcp6 import DHCP6
 from scapy.layers.dns import DNS
 from scapy.layers.http import HTTP
 from scapy.layers.inet import IP, TCP, UDP, ICMP
-from scapy.layers.dhcp import DHCP
-from scapy.layers.dhcp6 import DHCP6
 from scapy.layers.inet6 import IPv6
-from scapy.layers.llmnr import LLMNRQuery, LLMNRResponse
 from scapy.layers.l2 import ARP
+from scapy.layers.llmnr import LLMNRQuery, LLMNRResponse
 from scapy.layers.ntp import NTP
 from scapy.layers.snmp import SNMP
-from scapy.packet import Packet, Raw, Padding
+from scapy.packet import Packet
 
 from preprocessor import PcapPreprocessor, PcapPreprocessTask
-from util import IPUtil
+from util.ip import get_ip_class
 
 
 @dataclass
 class PcapCount:
+    """
+    统计原始包相关的信息。
+
+    Attributes:
+        pcap (int): 原始包的个数
+        total_length (int): 原始包的总长度
+        payload_total_length (int): 载体的总长度
+    """
     pcap: int = 0
     total_length: int = 0
     payload_total_length: int = 0
 
     def count(self, packet: Packet):
         self.pcap += 1
+        self.total_length += len(packet)
+        self.payload_total_length += len(packet.payload)
+
+
+@dataclass
+class SessionCounter:
+    """
+    统计 Session 中包的个数、原始包的数据大小、载体数据包的大小。
+
+    Attributes:
+        count (int): session 所包含的数据包的个数
+        total_length (int): session 所包含的原始数据包的总长度
+        payload_total_length (int): session 所包含的载体数据的总长度
+    """
+    count: int = 0
+    total_length: int = 0
+    payload_total_length: int = 0
+
+    def statistics(self, packet: Packet) -> None:
+        self.count += 1
         self.total_length += len(packet)
         self.payload_total_length += len(packet.payload)
 
@@ -62,8 +88,8 @@ class IPCount:
             ip_src = ip.src
             ip_dst = ip.dst
 
-            ip_src_class: str = IPUtil.get_ip_class(ip_src)
-            ip_dst_class: str = IPUtil.get_ip_class(ip_dst)
+            ip_src_class: str = get_ip_class(ip_src)
+            ip_dst_class: str = get_ip_class(ip_dst)
             # 统计 ip v4
             self.v4_count += 1
 
@@ -105,11 +131,15 @@ class _UstcStatisticsTask(PcapPreprocessTask):
         self.l7 = {name: 0 for name in self._l7_layers_name}
         self.l7['other'] = 0
 
+        # 统计每个 session 包含的原始包的数量
+        self.session_count: dict[str: SessionCounter] = {}
+
     def preprocess(self, packet: Packet):
         self.pcap_count.count(packet)
         self.l4_count.count(packet)
         self.ip_count.count(packet)
 
+        # 处理 L7 应用层协议
         flag = False
         for layer, name in zip(self._l7_layers, self._l7_layers_name):
             if packet.haslayer(layer):
@@ -119,13 +149,20 @@ class _UstcStatisticsTask(PcapPreprocessTask):
         if not flag:
             self.l7['other'] += 1
 
+        # 处理 session
+        # session_key = session_extractor(packet)
+        # session_counter = self.session_count.get(session_key, SessionCounter())
+        # session_counter.statistics(packet)
+        # self.session_count[session_key] = session_counter
+
     def pcap_completed(self) -> Any:
         """这些数据将保存在处理完成的 completed.json 文件里"""
         ret = {
             "pcap": self.pcap_count.__dict__,
             "ip": self.ip_count.__dict__,
             "l4": self.l4_count.__dict__,
-            "l7": self.l7
+            "l7": self.l7,
+            "session": {k: self.session_count[k].__dict__ for k in self.session_count.keys()},
         }
         return ret
 

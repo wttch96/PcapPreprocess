@@ -7,14 +7,16 @@ shared:
       root-path:
 
   methods:
+    # GLADS 数据预处理
     glads:
-
+      module: preprocessor.impl.glads
+      class: GladsPreprocessor
     capsule:
 
     # USTC 数据集统计分析
     ustc-tfc2016-statistics:
       # 数据分析器所在的模块
-      module: impl.ustc_statistics
+      module: preprocessor.impl.ustc_statistics
       # 数据分析器的类名
       class: UstcStatistics
 
@@ -34,7 +36,7 @@ shared:
         M: 20
         N: 1000
 
-
+# MARK: - 本地测试配置
 local:
   datasets:
     ustc-tfc2016:
@@ -44,41 +46,19 @@ local:
       method: capsule
       dataset: ustc-tfc2016
       output-path: ./datasets/USTC-example-capsule-20-1000
-  glads:
-    datasets:
-      root-path: ./datasets/example
-      output-path: ./datasets/example-output
-  # Capsule 胶囊网络的实验数据集预处理
-  capsule:
-    datasets:
-      # UTSC M = 20, N = 1000 的预处理
-      - name: USTC-Capsule
-        # 数据集所在位置
-        root-path: ./datasets/USTC-example
-        # 预处理输出位置
-        output-path: ./datasets/USTC-example-capsule-20-1000
-        # 参数 M 和 N
-        M: 20
-        N: 1000
+    glads-ustc:
+      method: glads
+      dataset: ustc-tfc2016
+      output-path: ./datasets/USTC-Glads
 
-# 以下是服务器的环境
+# MARK: - 学校服务器配置
 school-server:
-  glads:
-    dataset-path:
-  capsule:
-    datasets:
-      - name: USTC-TFC2016-Capsule-20-1000
-        root-path: /home/wangc/datasets/USTC-TFC2016
-        output-path: /home/wangc/datasets/USTC-TFC2016-Capsule-20-1000
-        # 参数
-        M: 20
-        N: 1000
 
   datasets:
     ustc-tfc2016:
       root-path: /home/wangc/datasets/USTC-TFC2016
-
-
+    isc-vpn-2016:
+      root-path: /home/wangc/datasets/ISC-VPN-nonVPN-2016
   preprocessors:
     # USTC 数据集统计
     ustc-tfc2016-statistics:
@@ -87,3 +67,15 @@ school-server:
       # 使用的数据集
       dataset: ustc-tfc2016
       output-path: /home/wangc/datasets/USTC-Statistics
+    isc-vpn-2016-statistics:
+      method: ustc-tfc2016-statistics
+      dataset: isc-vpn-2016
+      output-path: /home/wangc/datasets/ISC-VPN-nonVPN-2016-Statistics
+    glads-ustc:
+      method: glads
+      dataset: ustc-tfc2016
+      output-path: /home/wangc/datasets/USTC-Glads
+    glads-isc-vpn:
+      method: glads
+      dataset: isc-vpn-2016
+      output-path: /home/wangc/datasets/ISC-VPN-nonVPN-2016-Glads

@@ -2,7 +2,7 @@ import json
 import os
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 from scapy.packet import Packet
@@ -20,7 +20,9 @@ class PcapPreprocessTask(ABC):
 
     def __init__(self, root_path: str, output_path: str, cur_dir: str, file: str, relpath: str, pcap_name: str):
         """
-        构造一个任务预处理任务。
+        构造一个任务预处理任务。 一般这个参数都是由 `PcapPreprocessor#create_task(**kwargs)` 函数生成的, 只需把 `create_task`
+        方法的 `kwargs` 作为输入传入该构造函数就可以了。
+
         Args:
             root_path: 数据集所在文件夹
             output_path: 预处理输出文件夹
@@ -45,6 +47,7 @@ class PcapPreprocessTask(ABC):
         logger.info(f"文件 {self.relpath}/{self.file} 开始解析...")
         start_time = time.time()
         count = 0
+        ignore_count = 0
         try:
             # 尝试创建输出文件夹
             self._try_mk_pcap_output_path()
@@ -53,13 +56,17 @@ class PcapPreprocessTask(ABC):
             self.pcap_start()
             with PcapReader(f"{self.cur_dir}/{self.file}") as reader:
                 for packet in reader:
+                    # 如果是忽略的数据包
+                    if self._ignore_packet(packet):
+                        ignore_count += 1
+                        continue
                     # 处理 packet
                     self._preprocess_wrapper(packet)
                     count += 1
                     if count % 10000 == 0:
                         used_time = time.time() - start_time
                         logger.info(
-                            f"文件 {self.relpath}/{self.file} 已处理{count}包, 用时: {used_time:.3f}s "
+                            f"文件 {self.relpath}/{self.file} 已处理{count}包, 忽略{ignore_count}包, 用时: {used_time:.3f}s "
                             f"平均 {count / used_time:.2f} 包/s, ")
 
             # 调用回调
@@ -69,7 +76,7 @@ class PcapPreprocessTask(ABC):
         finally:
             used_time = time.time() - start_time
             logger.info(
-                f"文件 {self.relpath}/{self.file} 解析完成! 平均 {count / used_time:.2f} 包/s, "
+                f"文件 {self.relpath}/{self.file} 解析完成! 忽略{ignore_count}包, 平均 {count / used_time:.2f} 包/s, "
                 f"共{count}包, 用时: {used_time:.3f}s")
 
     def _preprocess_wrapper(self, packet: Packet) -> None:
@@ -80,6 +87,17 @@ class PcapPreprocessTask(ABC):
             self.preprocess(packet)
         except Exception as e:
             self.logger.warning(f"预处理包出错 {e.__class__.__name__}: {e}")
+
+    def _ignore_packet(self, packet: Packet) -> bool:
+        """
+        判断给定的包数据是否需要忽略，默认全部不忽略，如果需要忽略在子类中覆盖此函数即可。
+        Args:
+            packet: 要判断的数据包
+
+        Returns:
+            True 如果忽略数据包; 否则 False.
+        """
+        return False
 
     @abstractmethod
     def preprocess(self, packet: Packet):
@@ -208,22 +226,23 @@ class PcapPreprocessor(ABC):
                 logger.info(f"文件 {relpath}/{file} 解析任务已提交...")
                 self.executor.submit(task)
 
-    def start_process_completed_file(self):
-        for cur_dir, _, files in os.walk(self.output_path):
-            for file in files:
-                file_key = self.completed_file_key(cur_dir, file)
-
-                with open(os.path.join(cur_dir, file), 'r') as f:
-                    content: dict = json.load(f)
-                    self.process_completed_file(file_key, content)
-
-    @abstractmethod
-    def process_completed_file(self, file_key: str, content: dict) -> None:
-        pass
-
-    @abstractmethod
-    def completed_file_key(self, cur_dir: str, file: str) -> str:
-        pass
+    # 处理完成的数据
+    # def start_process_completed_file(self):
+    #     for cur_dir, _, files in os.walk(self.output_path):
+    #         for file in files:
+    #             file_key = self.completed_file_key(cur_dir, file)
+    #
+    #             with open(os.path.join(cur_dir, file), 'r') as f:
+    #                 content: dict = json.load(f)
+    #                 self.process_completed_file(file_key, content)
+    #
+    # @abstractmethod
+    # def process_completed_file(self, file_key: str, content: dict) -> None:
+    #     pass
+    #
+    # @abstractmethod
+    # def completed_file_key(self, cur_dir: str, file: str) -> str:
+    #     pass
 
     def ignore_file(self, file: str) -> bool:
         """
