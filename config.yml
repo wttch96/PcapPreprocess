@@ -1,0 +1,71 @@
+config:
+  active: local
+
+---
+config:
+  shared: true
+  pcap-preprocess:
+    datasets:
+      # ⚠️添加数据集，请一定更新 schema
+      - name: ustc-tfc2016
+        description:
+        url:
+      - name: isc-vpn-2016
+        description:
+        url:
+    methods:
+      # ⚠️添加方法，请一定更新 schema
+      - name: capsule
+        module: preprocessor.impl.capsule
+        clazz: CapsulePreprocessor
+      - name: glads
+        module: preprocessor.impl.glads
+        clazz: GladsPreprocessor
+      - name: statistics
+        module: preprocessor.impl.statistics
+        clazz: PcapStatistics
+      - name: ec-gcn-graph-structure
+        module: preprocessor.impl.ecgcn.graph_structure
+        clazz: ECGENGraphStructurePreprocessor
+    preprocessors:
+      - name: ustc-tfc2016-statistics
+        method: statistics
+        dataset: ustc-tfc2016
+        kwargs:
+          max_worker: 8
+
+      - name: ustc-tfc2016-glads
+        method: glads
+        dataset: ustc-tfc2016
+        kwargs:
+          max_worker: 8
+
+      - name: ustc-tfc2016-ec-gcn-graph-structure
+        method: ec-gcn-graph-structure
+        dataset: ustc-tfc2016
+        kwargs:
+          max_workers: 8
+
+
+
+
+---
+config:
+  name: test
+  pcap-preprocess:
+    datasets-config:
+      - name: ustc-tfc2016
+        root-path: ./datasets/USTC-TFC2016
+    output-path: ./datasets/output
+
+
+
+---
+config:
+  name: local
+  pcap-preprocess:
+    datasets-config:
+      - name: ustc-tfc2016
+        root-path: /Volumes/Wttch个人/datasets/USTC-TFC2016
+    output-path: /Volumes/Wttch个人/datasets/preprocessor-output
+

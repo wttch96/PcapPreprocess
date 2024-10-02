@@ -1,0 +1,10 @@
+scapy~=2.5.0
+tqdm~=4.66.1
+numpy~=2.1.0
+scapy~=2.6.0
+Pillow~=10.3.0
+matplotlib~=3.8.2
+wttch-train-helper~=0.0.33
+PyYAML~=6.0.1
+pyecharts~=2.0.5
+networkx~=3.3

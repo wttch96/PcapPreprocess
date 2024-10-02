@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "$ref": "https://raw.githubusercontent.com/wttch96/train-helper/main/src/wttch-train-helper/config-schema.yml",
+  "properties": {
+    "config": {
+      "properties": {
+        "pcap-preprocess": {
+          "type": "object",
+          "description": "pcap数据集预处理根",
+          "properties": {
+            "output-path": {
+              "type": "string",
+              "description": "输出的根目录"
+            },
+            "datasets": {
+              "type": "array",
+              "description": "数据集声明",
+              "items": {
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "数据集名称"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "数据集描述"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "数据集主页路径"
+                  }
+                }
+              }
+            },
+            "datasets-config": {
+              "type": "array",
+              "description": "数据集配置",
+              "items": {
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "数据集名称",
+                    "enum": [
+                      "ustc-tfc2016",
+                      "isc-vpn-2016"
+                    ]
+                  },
+                  "root-path": {
+                    "type": "string",
+                    "description": "数据集路径"
+                  }
+                }
+              }
+            },
+            "methods": {
+              "type": "array",
+              "description": "pcap预处理方法声明",
+              "items": {
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "预处理方法名称"
+                  },
+                  "module": {
+                    "type": "string",
+                    "description": "预处理方法所在的模块"
+                  },
+                  "clazz": {
+                    "type": "string",
+                    "description": "预处理方法的类名"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "预处理方法标题或论文题目"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "预处理方法参考链接或原文链接"
+                  }
+                }
+              }
+            },
+            "preprocessors": {
+              "type": "array",
+              "description": "预处理器实例声明",
+              "items": {
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "description": "预处理器使用的预处理方法",
+                    "enum": [
+                      "capsule",
+                      "glads",
+                      "statistics",
+                      "ec-gcn-graph-structure"
+                    ]
+                  },
+                  "dataset": {
+                    "type": "string",
+                    "description": "预处理器使用的数据集",
+                    "enum": [
+                      "ustc-tfc2016",
+                      "isc-vpn-2016"
+                    ]
+                  },
+                  "kwargs": {
+                    "type": "object",
+                    "description": "预处理器初始化参数"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

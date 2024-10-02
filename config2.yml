@@ -1,0 +1,84 @@
+active: test
+
+
+shared:
+  # MARK: - 数据集
+  datasets:
+    - name: ustc-tfc2016
+      root-path:
+    - name: isc-vpn-2016
+      root-path:
+  test: ustc-tfc2016
+  # MARK: - 处理任务
+  preprocessors:
+    # USTC 数据集统计
+    ustc-tfc2016-statistics:
+      # 使用的方法
+      method: statistics
+      # 使用的数据集
+      dataset: ustc-tfc2016
+
+    glads-ustc:
+      method: glads
+      dataset: ustc-tfc2016
+    ustc-tfc2016-capsule:
+      number-workers: 2
+      kwargs:
+        M: 20
+        N: 1000
+# MARK: - 测试
+test:
+  datasets:
+    ustc-tfc2016:
+      root-path: ./datasets/USTC-TFC2016
+  preprocessors:
+    ustc-tfc2016-statistics:
+      method: statistics
+      dataset: ustc-tfc2016
+      kwargs:
+        max_worker: 8
+      output-path: ./datasets/USTC-Statistics-Test
+
+# MARK: - 本地测试配置
+local:
+  datasets:
+    ustc-tfc2016:
+      root-path: /Volumes/Wttch/datasets/USTC-TFC2016
+  preprocessors:
+    ustc-tfc2016-capsule:
+      method: capsule
+      dataset: ustc-tfc2016
+      output-path: /Volumes/Wttch/datasets/USTC-TFC2016-capsule
+    glads-ustc:
+      output-path: /Volumes/Wttch/datasets/USTC-Glads
+
+# MARK: - 学校服务器配置
+school-server:
+
+  datasets:
+    ustc-tfc2016:
+      root-path: /home/wangc/datasets/USTC-TFC2016
+    isc-vpn-2016:
+      root-path: /home/wangc/datasets/ISC-VPN-nonVPN-2016
+  preprocessors:
+    # USTC 数据集统计
+    ustc-tfc2016-statistics:
+      # 使用的方法
+      method: statistics
+      # 使用的数据集
+      dataset: ustc-tfc2016
+      kwargs:
+        max_worker: 19
+      output-path: /home/wangc/datasets/USTC-Statistics
+    isc-vpn-2016-statistics:
+      method: ustc-tfc2016-statistics
+      dataset: isc-vpn-2016
+      output-path: /home/wangc/datasets/ISC-VPN-nonVPN-2016-Statistics
+    glads-ustc:
+      method: glads
+      dataset: ustc-tfc2016
+      output-path: /home/wangc/datasets/USTC-Glads
+    glads-isc-vpn:
+      method: glads
+      dataset: isc-vpn-2016
+      output-path: /home/wangc/datasets/ISC-VPN-nonVPN-2016-Glads
